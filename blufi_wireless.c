@@ -220,7 +220,7 @@ esp_err_t load_saved_sta(wifi_config_t *saved_sta_config)
     return ESP_OK;
 }
 
-esp_err_t blufi_initialise_wifi()
+esp_err_t blufi_initialise_wifi(bool ignore_existing_settings)
 {
     esp_err_t ret;
     wifi_config_t saved_sta_config;
@@ -235,6 +235,13 @@ esp_err_t blufi_initialise_wifi()
     ret = load_saved_sta(&saved_sta_config);
 
     ESP_ERROR_CHECK(esp_wifi_start());
+
+    if (ignore_existing_settings)
+    {
+        ESP_LOGI(TAG, "Ignoring staved sta.");
+        // We return a fail since ignoring saved settings causes a "failure".
+        return ESP_FAIL;
+    }
 
     if (ret != ESP_OK)
     {
