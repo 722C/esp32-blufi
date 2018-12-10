@@ -19,6 +19,9 @@
 #include "blufi_security.h"
 #include "blufi_wireless.h"
 
+#include "wifi.h"
+#include "storage.h"
+
 static const char *TAG = "BLUFI_DEMO";
 
 static void blufi_event_callback(esp_blufi_cb_event_t event, esp_blufi_cb_param_t *param);
@@ -83,7 +86,7 @@ EventGroupHandle_t wifi_event_group;
 /* The event group allows multiple bits for each event,
    but we only care about one event - are we connected
    to the AP with an IP? */
-const int CONNECTED_BIT = BIT0;
+// const int CONNECTED_BIT = BIT0;
 
 /* store the station info for send back to phone */
 static bool gl_sta_connected = false;
@@ -110,7 +113,6 @@ esp_err_t event_handler(void *ctx, system_event_t *event)
         memset(&info, 0, sizeof(esp_blufi_extra_info_t));
         memcpy(info.sta_bssid, gl_sta_bssid, 6);
         info.sta_bssid_set = true;
-        info.sta_ssid = gl_sta_ssid;
         info.sta_ssid_len = gl_sta_ssid_len;
         esp_blufi_send_wifi_conn_report(mode, ESP_BLUFI_STA_CONN_SUCCESS, 0, &info);
         break;
@@ -226,7 +228,7 @@ esp_err_t blufi_initialise_wifi(bool ignore_existing_settings)
     wifi_config_t saved_sta_config;
 
     tcpip_adapter_init();
-    wifi_event_group = xEventGroupCreate();
+    wifi_event_group = get_wifi_event_group();
     ESP_ERROR_CHECK(esp_event_loop_init(event_handler, NULL));
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -249,8 +251,15 @@ esp_err_t blufi_initialise_wifi(bool ignore_existing_settings)
         return ESP_FAIL;
     }
 
+    wifi_config_t wifi_config = {
+        .sta = {},
+    };
+
+    memcpy(wifi_config.sta.ssid, saved_sta_config.sta.ssid, 32);
+    memcpy(wifi_config.sta.password, saved_sta_config.sta.password, 64);
+
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &saved_sta_config));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_connect());
     return ESP_OK;
 }
@@ -280,6 +289,8 @@ static void blufi_event_callback(esp_blufi_cb_event_t event, esp_blufi_cb_param_
         printf("Error (%d) opening NVS!\n", ret);
     }
 
+    ESP_LOGI(TAG, "BLUFI event: %d", event);
+
     /* actually, should post to blufi_task handle the procedure,
      * now, as a demo, we do simplely */
     switch (event)
@@ -291,7 +302,7 @@ static void blufi_event_callback(esp_blufi_cb_event_t event, esp_blufi_cb_param_
         esp_ble_gap_config_adv_data(&blufi_adv_data);
         break;
     case ESP_BLUFI_EVENT_DEINIT_FINISH:
-        ESP_LOGI(TAG, "BLUFI init finish\n");
+        ESP_LOGI(TAG, "BLUFI deinit finish\n");
         break;
     case ESP_BLUFI_EVENT_BLE_CONNECT:
         ESP_LOGI(TAG, "BLUFI ble connect\n");
@@ -356,7 +367,7 @@ static void blufi_event_callback(esp_blufi_cb_event_t event, esp_blufi_cb_param_
 
         ret = nvs_set_str(blufi_handle, "sta_ssid", (char *)sta_config.sta.ssid);
 
-        ESP_LOGI(TAG, "Saved sta_ssid %d\n", ret)
+        ESP_LOGI(TAG, "Saved sta_ssid %d\n", ret);
 
         break;
     case ESP_BLUFI_EVENT_RECV_STA_PASSWD:
@@ -367,7 +378,7 @@ static void blufi_event_callback(esp_blufi_cb_event_t event, esp_blufi_cb_param_
 
         ret = nvs_set_str(blufi_handle, "sta_password", (char *)sta_config.sta.password);
 
-        ESP_LOGI(TAG, "Saved sta_password %d\n", ret)
+        ESP_LOGI(TAG, "Saved sta_password %d\n", ret);
 
         break;
     case ESP_BLUFI_EVENT_RECV_SOFTAP_SSID:
