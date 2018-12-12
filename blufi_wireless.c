@@ -101,7 +101,8 @@ esp_err_t event_handler(void *ctx, system_event_t *event)
     switch (event->event_id)
     {
     case SYSTEM_EVENT_STA_START:
-        esp_wifi_connect();
+        // Don't automatically connect here, as this seems to cause issues with resetting up.
+        // esp_wifi_connect();
         break;
     case SYSTEM_EVENT_STA_GOT_IP:
     {
