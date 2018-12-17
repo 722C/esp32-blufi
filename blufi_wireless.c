@@ -236,6 +236,7 @@ esp_err_t blufi_initialise_wifi(bool ignore_existing_settings)
     ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
 
     ret = load_saved_sta(&saved_sta_config);
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
 
     ESP_ERROR_CHECK(esp_wifi_start());
 
